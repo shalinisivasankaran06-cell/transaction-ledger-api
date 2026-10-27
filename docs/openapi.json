@@ -1,0 +1,849 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Transaction Ledger API",
+    "description": "Accounts with credit/debit transactions, balances and paginated history.\n\nMoney values are decimal strings with 2 places (e.g. \"100.50\"). Every error has the shape `{\"error\": {\"code\", \"message\", \"details\"}}`.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/accounts": {
+      "post": {
+        "tags": [
+          "accounts"
+        ],
+        "summary": "Create an account (balance starts at 0)",
+        "operationId": "create_account_accounts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/accounts/{account_id}": {
+      "get": {
+        "tags": [
+          "accounts"
+        ],
+        "summary": "Get account details",
+        "operationId": "get_account_accounts__account_id__get",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Account not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/accounts/{account_id}/balance": {
+      "get": {
+        "tags": [
+          "accounts"
+        ],
+        "summary": "Get the current balance",
+        "operationId": "get_balance_accounts__account_id__balance_get",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BalanceOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Account not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/accounts/{account_id}/transactions": {
+      "post": {
+        "tags": [
+          "accounts"
+        ],
+        "summary": "Add a credit or debit transaction",
+        "operationId": "add_transaction_accounts__account_id__transactions_post",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Account not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Insufficient balance (debit rejected, balance unchanged)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "reference_id already used on this account (existing transaction in details)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "accounts"
+        ],
+        "summary": "Transaction history (newest first, filter by type, paginated)",
+        "operationId": "list_transactions_accounts__account_id__transactions_get",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TransactionType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "credit or debit; omit for both",
+              "title": "Type"
+            },
+            "description": "credit or debit; omit for both"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number, starting at 1",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "Page number, starting at 1"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Records per page",
+              "default": 10,
+              "title": "Limit"
+            },
+            "description": "Records per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionPage"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Account not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid pagination parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/transfers": {
+      "post": {
+        "tags": [
+          "transfers"
+        ],
+        "summary": "Transfer money from one account to another (atomic)",
+        "operationId": "create_transfer_transfers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Insufficient balance in the source account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Source or destination account not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "reference_id already used on one of the accounts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Liveness + database check",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AccountCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "examples": [
+              "Shalini"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "AccountCreate"
+      },
+      "AccountOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "balance": {
+            "type": "string",
+            "title": "Balance"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "balance",
+          "created_at"
+        ],
+        "title": "AccountOut"
+      },
+      "BalanceOut": {
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "balance": {
+            "type": "string",
+            "title": "Balance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "account_id",
+          "balance"
+        ],
+        "title": "BalanceOut"
+      },
+      "ErrorBody": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "examples": [
+              "ACCOUNT_NOT_FOUND"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "examples": [
+              "Account not found"
+            ]
+          },
+          "details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorBody"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse"
+      },
+      "PaginationMeta": {
+        "properties": {
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "total_records": {
+            "type": "integer",
+            "title": "Total Records"
+          },
+          "total_pages": {
+            "type": "integer",
+            "title": "Total Pages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "page",
+          "limit",
+          "total_records",
+          "total_pages"
+        ],
+        "title": "PaginationMeta"
+      },
+      "TransactionCreate": {
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/TransactionType",
+            "examples": [
+              "credit"
+            ]
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount",
+            "examples": [
+              "100.00"
+            ]
+          },
+          "reference_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Reference Id",
+            "examples": [
+              "TXN-1001"
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "examples": [
+              "Salary"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "amount",
+          "reference_id"
+        ],
+        "title": "TransactionCreate"
+      },
+      "TransactionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "type": {
+            "$ref": "#/components/schemas/TransactionType"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "reference_id": {
+            "type": "string",
+            "title": "Reference Id"
+          },
+          "balance_after": {
+            "type": "string",
+            "title": "Balance After"
+          },
+          "transfer_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transfer Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "account_id",
+          "type",
+          "amount",
+          "description",
+          "reference_id",
+          "balance_after",
+          "transfer_id",
+          "created_at"
+        ],
+        "title": "TransactionOut"
+      },
+      "TransactionPage": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/TransactionOut"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "pagination"
+        ],
+        "title": "TransactionPage"
+      },
+      "TransactionType": {
+        "type": "string",
+        "enum": [
+          "credit",
+          "debit"
+        ],
+        "title": "TransactionType"
+      },
+      "TransferCreate": {
+        "properties": {
+          "from_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "From Account Id"
+          },
+          "to_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "To Account Id"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount",
+            "examples": [
+              "100.00"
+            ]
+          },
+          "reference_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Reference Id",
+            "examples": [
+              "TRF-2001"
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "examples": [
+              "Rent share"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "from_account_id",
+          "to_account_id",
+          "amount",
+          "reference_id"
+        ],
+        "title": "TransferCreate"
+      },
+      "TransferOut": {
+        "properties": {
+          "transfer_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Transfer Id"
+          },
+          "from_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "From Account Id"
+          },
+          "to_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "To Account Id"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "reference_id": {
+            "type": "string",
+            "title": "Reference Id"
+          },
+          "debit_transaction": {
+            "$ref": "#/components/schemas/TransactionOut"
+          },
+          "credit_transaction": {
+            "$ref": "#/components/schemas/TransactionOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transfer_id",
+          "from_account_id",
+          "to_account_id",
+          "amount",
+          "reference_id",
+          "debit_transaction",
+          "credit_transaction"
+        ],
+        "title": "TransferOut"
+      }
+    }
+  }
+}
